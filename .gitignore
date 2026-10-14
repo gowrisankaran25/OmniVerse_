@@ -10,3 +10,5 @@ screenshots/
 Thumbs.db
 *.log
 .env
+.vercel
+.env*

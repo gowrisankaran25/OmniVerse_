@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "build": "echo 'Omniverse build ready'",
+    "build": "node build.mjs",
     "test": "playwright test",
     "test:report": "playwright show-report"
   },

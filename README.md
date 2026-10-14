@@ -157,4 +157,4 @@ tests/                     Playwright specs
 
 ## License
 
-[MIT](LICENSE) © 2026 Akbar Sheikh
+[MIT](LICENSE) © 2026 

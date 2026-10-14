@@ -1,5 +1,5 @@
 // Zero-dependency static server for Omniverse. The camera API needs a secure context: http://localhost is one.
-//   node server.mjs [port]      ->  http://localhost:5173
+//   node dev-server.mjs [port]      ->  http://localhost:5173
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';

@@ -21,5 +21,5 @@ export default defineConfig({
     },
     trace: 'retain-on-failure',
   },
-  webServer: { command: 'node server.mjs 5173', url: 'http://localhost:5173', reuseExistingServer: true, timeout: 30_000 },
+  webServer: { command: 'node dev-server.mjs 5173', url: 'http://localhost:5173', reuseExistingServer: true, timeout: 30_000 },
 });

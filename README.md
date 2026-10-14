@@ -34,7 +34,7 @@ to drive it with the on-screen buttons and keyboard.
 | **Gesture recognition** | Custom classifiers turn landmarks into poses (fist, open, point, pinch, peace), a finger-snap detector, hand twist/tilt and two-hand zoom, fed through a debouncer and a state machine |
 | **Particle engine** | A hand-written WebGL2 renderer. Particle physics runs on the GPU with transform feedback: no Three.js, no game engine, no framework |
 | **Models** | 33 procedural models built from real measurements and sampled into point clouds, with named parts that can explode, glow and be pulled out |
-| **Server** | A zero-dependency Node.js static server (`server.mjs`) |
+| **Server** | A zero-dependency Node.js static server (`dev-server.mjs`) |
 
 Nothing is sent anywhere: the video never leaves your machine.
 
@@ -135,7 +135,7 @@ npm test
 
 ```
 index.html, styles.css     page and styles
-server.mjs                 zero-dependency static server
+dev-server.mjs             zero-dependency static server
 models/                    MediaPipe hand landmark model
 src/app.js                 render loop, explode, zoom, picking, quiz, cut-away, HUD, labels, demo
 src/hands.js               webcam + MediaPipe Hand Landmarker

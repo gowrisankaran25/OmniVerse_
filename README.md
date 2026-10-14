@@ -14,8 +14,8 @@ You need [Node.js](https://nodejs.org/) 18 or newer and a webcam (optional: ever
 keyboard).
 
 ```bash
-git clone https://github.com/PRAKASH-2012/OmniVerse.git
-cd OmniVerse
+git clone https://github.com/PRAKASH-2012/OmniVerse_.git
+cd OmniVerse_
 npm install
 npm start
 ```

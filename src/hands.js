@@ -3,6 +3,7 @@
 const VISION = '../node_modules/@mediapipe/tasks-vision/vision_bundle.mjs';
 const WASM = 'node_modules/@mediapipe/tasks-vision/wasm';
 const MODEL = 'models/hand_landmarker.task';
+const CDN_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 const CDN_VISION = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
 const CDN_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
 
@@ -37,11 +38,22 @@ export class HandCamera {
     let fileset;
     try { fileset = await FilesetResolver.forVisionTasks(WASM); }
     catch { fileset = await FilesetResolver.forVisionTasks(CDN_WASM); }
-    const make = (delegate) => HandLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: MODEL, delegate },
-      runningMode: 'VIDEO', numHands: 2,
-      minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
-    });
+    const make = async (delegate) => {
+      try {
+        return await HandLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: MODEL, delegate },
+          runningMode: 'VIDEO', numHands: 2,
+          minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+        });
+      } catch (e) {
+        console.warn(`Local model failed for delegate ${delegate}, falling back to CDN model`, e);
+        return await HandLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: CDN_MODEL, delegate },
+          runningMode: 'VIDEO', numHands: 2,
+          minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+        });
+      }
+    };
     try { this.landmarker = await make('GPU'); this.delegate = 'GPU'; }
     catch (e) { console.warn('GPU delegate failed, falling back to CPU', e); this.landmarker = await make('CPU'); this.delegate = 'CPU'; }
     this.running = true;

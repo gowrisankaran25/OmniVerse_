@@ -771,8 +771,9 @@ class App {
       return true;
     } catch (e) {
       console.error(e);
-      const text = e.name === 'NotAllowedError' ? 'Camera permission was denied — you can still use the keyboard, mouse and demo.'
-        : e.name === 'NotFoundError' ? 'No camera found — you can still use the keyboard, mouse and demo.' : `Camera error: ${e.message}`;
+      const msgStr = e?.message || (typeof e === 'string' ? e : '') || (e?.name ? `${e.name}` : 'Unable to access camera');
+      const text = e?.name === 'NotAllowedError' ? 'Camera permission was denied — you can still explore using touch, mouse or demo mode.'
+        : e?.name === 'NotFoundError' ? 'No camera found — you can still explore using touch, mouse or demo mode.' : `Camera notice: ${msgStr}`;
       msg.textContent = text; this.toast(text);
       this.cam?.stop(); this.cam = null; this.camOn = false;
       return false;
@@ -813,10 +814,31 @@ function boot() {
   }
   const start = document.getElementById('start');
   const hideStart = () => { start.hidden = true; };
-  document.getElementById('bStartCam').onclick = async () => { if (await app.startCamera()) hideStart(); };
-  document.getElementById('bStartNoCam').onclick = () => { hideStart(); app.toast('Keyboard: Space = snap · F = fist · O = open · E = explode · D = demo · H = help'); };
-  if (CFG.autostart === 'camera') { hideStart(); app.startCamera(); }
-  else if (CFG.autostart === 'nocamera' || CFG.manual) hideStart();
+  document.getElementById('bStartCam').onclick = async () => {
+    if (await app.startCamera()) {
+      hideStart();
+      app.selectModel(CFG.start, true);
+    }
+  };
+  document.getElementById('bStartNoCam').onclick = () => {
+    hideStart();
+    app.selectModel(CFG.start, true);
+    app.toast('✨ Model formed! Drag to rotate · Space/F/O/E to interact');
+  };
+  const bDemo = document.getElementById('bStartDemo');
+  if (bDemo) {
+    bDemo.onclick = () => {
+      hideStart();
+      app.toggleDemo();
+    };
+  }
+  if (CFG.autostart === 'camera') {
+    hideStart();
+    app.startCamera().then((ok) => { if (ok) app.selectModel(CFG.start, true); });
+  } else if (CFG.autostart === 'nocamera' || CFG.manual) {
+    hideStart();
+    if (CFG.autostart === 'nocamera') app.selectModel(CFG.start, true);
+  }
 
   window.omniverse = window.omniVerse = {
     app, CATALOG, CFG, synth: synthHand,

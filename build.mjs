@@ -8,6 +8,7 @@ cpSync('styles.css', 'dist/styles.css');
 cpSync('src', 'dist/src', { recursive: true });
 cpSync('models', 'dist/models', { recursive: true });
 try { cpSync('docs', 'dist/docs', { recursive: true }); } catch {}
+try { cpSync('.nojekyll', 'dist/.nojekyll'); } catch {}
 
 try {
   mkdirSync('dist/node_modules/@mediapipe', { recursive: true });

@@ -761,25 +761,55 @@ class App {
 
   toggle(prop, btn) { this[prop] = !this[prop]; this.$(btn).classList.toggle('on', this[prop]); }
 
+  async checkCameraAvailability() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return { ok: false, text: 'Camera requires a secure connection (HTTPS) in Chrome, Edge, Safari, or Firefox.' };
+    }
+    if (navigator.permissions?.query) {
+      try {
+        const p = await navigator.permissions.query({ name: 'camera' });
+        if (p.state === 'denied') {
+          return { ok: false, text: 'Camera is blocked in your browser. Click the lock 🔒 or camera 📷 icon in your address bar, set Camera to "Allow", and reload.' };
+        }
+      } catch {}
+    }
+    if (navigator.mediaDevices.enumerateDevices) {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+        if (devices.length > 0 && videoInputs.length === 0) {
+          return { ok: false, text: 'No camera hardware found on this PC. You can explore using touch/mouse or Watch Demo.' };
+        }
+      } catch {}
+    }
+    return { ok: true };
+  }
+
   async startCamera() {
     const msg = this.$('startMsg');
+    const check = await this.checkCameraAvailability();
+    if (!check.ok) {
+      msg.textContent = check.text;
+      this.toast(check.text);
+      return false;
+    }
     try {
       this.cam = this.cam || new HandCamera(this.video);
       await this.cam.start((s) => { msg.textContent = s; if (s) this.toast(s); });
       this.camOn = true; this.$('bCam').classList.add('on');
-      this.toast('📷 Camera on — snap your fingers!');
+      this.toast('📷 Camera active — raise your hand into camera view!');
       return true;
     } catch (e) {
       console.error('Camera startup failed:', e);
       let text;
-      if (e?.name === 'NotAllowedError') {
-        text = 'Camera blocked. Click the lock/camera icon in your browser URL bar, set Camera to "Allow", and reload.';
-      } else if (e?.name === 'NotReadableError') {
-        text = 'Camera is in use by another app (Zoom, Teams, Meet, OBS). Please close it and click the camera icon.';
-      } else if (e?.name === 'NotFoundError') {
-        text = 'No camera found. You can interact with 3D models using mouse, touch, or Watch Demo.';
+      if (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError') {
+        text = 'Camera blocked. In your address bar, click the lock 🔒 or camera 📷 icon -> set Camera to "Allow" -> reload.';
+      } else if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
+        text = 'Camera is in use by another app (Zoom, Teams, Meet, OBS). Please close other camera apps and try again.';
+      } else if (e?.name === 'NotFoundError' || e?.name === 'DevicesNotFoundError') {
+        text = 'No camera found. Plug in a webcam or explore using mouse/touch or Watch Demo.';
       } else {
-        const msgStr = e?.message || (typeof e === 'string' ? e : '') || (e?.name ? `${e.name}` : 'Camera unavailable');
+        const msgStr = e?.message || (typeof e === 'string' ? e : '') || e?.name || 'Camera unavailable';
         text = `Camera notice: ${msgStr}. Interactive touch/mouse controls are active.`;
       }
       msg.textContent = text;
@@ -847,6 +877,17 @@ function boot() {
   } else if (CFG.autostart === 'nocamera' || CFG.manual) {
     hideStart();
     if (CFG.autostart === 'nocamera') app.selectModel(CFG.start, true);
+  } else if (navigator.permissions?.query) {
+    navigator.permissions.query({ name: 'camera' }).then((p) => {
+      const updatePrompt = () => {
+        if (p.state === 'denied') {
+          const m = document.getElementById('startMsg');
+          if (m && !m.textContent) m.textContent = 'Camera is blocked. In your address bar, click the lock 🔒 or camera 📷 icon -> set Camera to "Allow" -> reload.';
+        }
+      };
+      updatePrompt();
+      p.onchange = updatePrompt;
+    }).catch(() => {});
   }
 
   window.omniverse = window.omniVerse = {

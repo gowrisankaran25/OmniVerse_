@@ -770,11 +770,20 @@ class App {
       this.toast('📷 Camera on — snap your fingers!');
       return true;
     } catch (e) {
-      console.error(e);
-      const msgStr = e?.message || (typeof e === 'string' ? e : '') || (e?.name ? `${e.name}` : 'Unable to access camera');
-      const text = e?.name === 'NotAllowedError' ? 'Camera permission was denied — you can still explore using touch, mouse or demo mode.'
-        : e?.name === 'NotFoundError' ? 'No camera found — you can still explore using touch, mouse or demo mode.' : `Camera notice: ${msgStr}`;
-      msg.textContent = text; this.toast(text);
+      console.error('Camera startup failed:', e);
+      let text;
+      if (e?.name === 'NotAllowedError') {
+        text = 'Camera blocked. Click the lock/camera icon in your browser URL bar, set Camera to "Allow", and reload.';
+      } else if (e?.name === 'NotReadableError') {
+        text = 'Camera is in use by another app (Zoom, Teams, Meet, OBS). Please close it and click the camera icon.';
+      } else if (e?.name === 'NotFoundError') {
+        text = 'No camera found. You can interact with 3D models using mouse, touch, or Watch Demo.';
+      } else {
+        const msgStr = e?.message || (typeof e === 'string' ? e : '') || (e?.name ? `${e.name}` : 'Camera unavailable');
+        text = `Camera notice: ${msgStr}. Interactive touch/mouse controls are active.`;
+      }
+      msg.textContent = text;
+      this.toast(text);
       this.cam?.stop(); this.cam = null; this.camOn = false;
       return false;
     }

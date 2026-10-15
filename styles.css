@@ -15,7 +15,7 @@
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
 canvas#gl, canvas#overlay { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
 canvas#overlay { pointer-events: none; }
-video#cam { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+video#cam { position: fixed; top: 0; left: 0; width: 640px; height: 480px; opacity: 0.001; pointer-events: none; z-index: -999; }
 button { font: inherit; color: inherit; cursor: pointer; }
 
 .glass {

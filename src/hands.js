@@ -7,6 +7,30 @@ const CDN_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmark
 const CDN_VISION = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
 const CDN_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
 
+async function loadVisionModule() {
+  try {
+    const head = await fetch(LOCAL_VISION, { method: 'HEAD' });
+    if (head.ok) return await import(LOCAL_VISION);
+  } catch {}
+  return await import(CDN_VISION);
+}
+
+async function resolveFileset(FilesetResolver) {
+  try {
+    const head = await fetch(`${LOCAL_WASM}/vision_wasm_internal.js`, { method: 'HEAD' });
+    if (head.ok) return await FilesetResolver.forVisionTasks(LOCAL_WASM);
+  } catch {}
+  return await FilesetResolver.forVisionTasks(CDN_WASM);
+}
+
+async function resolveModelPath() {
+  try {
+    const head = await fetch(LOCAL_MODEL, { method: 'HEAD' });
+    if (head.ok) return LOCAL_MODEL;
+  } catch {}
+  return CDN_MODEL;
+}
+
 export class HandCamera {
   constructor(video) {
     this.video = video;
@@ -62,51 +86,43 @@ export class HandCamera {
       });
     }
 
-    onStatus('Loading hand tracking AI…');
-    let mod;
-    try { mod = await import(LOCAL_VISION); }
-    catch { mod = await import(CDN_VISION); }
-    const { FilesetResolver, HandLandmarker } = mod;
+    // Camera hardware stream is active and running
+    this.running = true;
+    onStatus('Camera active! Loading hand tracker…');
 
-    let fileset;
-    try { fileset = await FilesetResolver.forVisionTasks(LOCAL_WASM); }
-    catch { fileset = await FilesetResolver.forVisionTasks(CDN_WASM); }
-
-    let modelAssetPath = LOCAL_MODEL;
+    // Load AI hand tracker asynchronously with graceful fallback
     try {
-      const head = await fetch(LOCAL_MODEL, { method: 'HEAD' });
-      if (!head.ok) modelAssetPath = CDN_MODEL;
-    } catch {
-      modelAssetPath = CDN_MODEL;
-    }
+      const { FilesetResolver, HandLandmarker } = await loadVisionModule();
+      const fileset = await resolveFileset(FilesetResolver);
+      const modelAssetPath = await resolveModelPath();
 
-    const make = (delegate, assetPath) => HandLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: assetPath, delegate },
-      runningMode: 'VIDEO', numHands: 2,
-      minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
-    });
+      const make = (delegate, assetPath, fs = fileset) => HandLandmarker.createFromOptions(fs, {
+        baseOptions: { modelAssetPath: assetPath, delegate },
+        runningMode: 'VIDEO', numHands: 2,
+        minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+      });
 
-    try {
-      this.landmarker = await make('GPU', modelAssetPath);
-      this.delegate = 'GPU';
-    } catch (eGPU) {
-      console.warn('GPU delegate failed, falling back to CPU', eGPU);
       try {
-        this.landmarker = await make('CPU', modelAssetPath);
-        this.delegate = 'CPU';
-      } catch (eCPU) {
-        if (modelAssetPath !== CDN_MODEL) {
-          console.warn('Retrying with CDN model on CPU', eCPU);
-          onStatus('Downloading hand model…');
-          this.landmarker = await make('CPU', CDN_MODEL);
+        this.landmarker = await make('GPU', modelAssetPath);
+        this.delegate = 'GPU';
+      } catch (eGPU) {
+        console.warn('GPU delegate failed, falling back to CPU', eGPU);
+        try {
+          this.landmarker = await make('CPU', modelAssetPath);
           this.delegate = 'CPU';
-        } else {
-          throw eCPU;
+        } catch (eCPU) {
+          console.warn('CPU delegate failed with initial fileset/model, trying CDN wasm + CDN model', eCPU);
+          const cdnFileset = await FilesetResolver.forVisionTasks(CDN_WASM);
+          this.landmarker = await make('CPU', CDN_MODEL, cdnFileset);
+          this.delegate = 'CPU';
         }
       }
+      onStatus('📷 Camera active — hand tracking ready!');
+    } catch (aiErr) {
+      console.warn('AI hand landmark tracking unavailable, camera video active in background:', aiErr);
+      onStatus('📷 Camera active — touch/mouse controls active');
     }
-    this.running = true;
-    onStatus('');
+    setTimeout(() => onStatus(''), 2500);
   }
 
   /** Returns undefined when there is no new camera frame, else a list of hands (mirrored, selfie view), possibly empty. */
@@ -115,15 +131,21 @@ export class HandCamera {
     if (!this.running || v.readyState < 2 || v.currentTime === this.lastVideoTime) return undefined;
     this.lastVideoTime = v.currentTime;
     this.newFrame = true;
+    if (!this.landmarker) return [];   // camera stream active, waiting or fallback mode
     const ts = Math.max(Math.round(performance.now()), this.lastTs + 1);      // must strictly increase
     this.lastTs = ts;
     const t0 = performance.now();
-    const res = this.landmarker.detectForVideo(v, ts);
-    this.detectMs = performance.now() - t0;
-    this.frames++; this._n++;
-    const now = performance.now();
-    if (now - this._t > 1000) { this.fps = (this._n * 1000) / (now - this._t); this._n = 0; this._t = now; }
-    return (res.landmarks || []).map((lm) => lm.map((p) => [1 - p.x, p.y]));   // mirror x: selfie view
+    try {
+      const res = this.landmarker.detectForVideo(v, ts);
+      this.detectMs = performance.now() - t0;
+      this.frames++; this._n++;
+      const now = performance.now();
+      if (now - this._t > 1000) { this.fps = (this._n * 1000) / (now - this._t); this._n = 0; this._t = now; }
+      return (res.landmarks || []).map((lm) => lm.map((p) => [1 - p.x, p.y]));   // mirror x: selfie view
+    } catch (detectErr) {
+      console.warn('MediaPipe detect warning:', detectErr);
+      return [];
+    }
   }
 
   stop() {

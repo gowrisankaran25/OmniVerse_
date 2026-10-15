@@ -809,10 +809,10 @@ class App {
       } else if (e?.name === 'NotFoundError' || e?.name === 'DevicesNotFoundError') {
         text = 'No camera found. Plug in a webcam or explore using mouse/touch or Watch Demo.';
       } else {
-        const msgStr = e?.message || (typeof e === 'string' ? e : '') || e?.name || 'Camera unavailable';
-        text = `Camera notice: ${msgStr}. Interactive touch/mouse controls are active.`;
+        const msgStr = (typeof e === 'string' ? e : e?.message) || e?.name;
+        text = msgStr ? `Camera notice: ${msgStr}.` : 'Camera notice: Camera could not be initialized. Mouse/touch controls are active.';
       }
-      msg.textContent = text;
+      if (msg) msg.textContent = text;
       this.toast(text);
       this.cam?.stop(); this.cam = null; this.camOn = false;
       return false;
@@ -854,10 +854,9 @@ function boot() {
   const start = document.getElementById('start');
   const hideStart = () => { start.hidden = true; };
   document.getElementById('bStartCam').onclick = async () => {
-    if (await app.startCamera()) {
-      hideStart();
-      app.selectModel(CFG.start, true);
-    }
+    hideStart();
+    app.selectModel(CFG.start, true);
+    await app.startCamera();
   };
   document.getElementById('bStartNoCam').onclick = () => {
     hideStart();
